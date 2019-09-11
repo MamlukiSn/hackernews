@@ -1,0 +1,19 @@
+{
+    "name": "mamlukisn/hackernews",
+    "type": "project",
+    "authors": [
+        {
+            "name": "Kenneth  Kariuki",
+            "email": "kennethnderitu2@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "^6.3",
+        "altorouter/altorouter": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kenneth\\HackerNews\\": "src"
+        }
+    }
+}
