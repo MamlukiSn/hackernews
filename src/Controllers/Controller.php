@@ -22,7 +22,16 @@ class Controller
     public function latest25(){
         $latest = $this->repository->getTopWordsFromLast25(25);
         return $latest;
-        echo json_encode($latest);
-        exit;
+    }
+
+    public function latestWeek(){
+        $weekStart =  strtotime('-1 day',strtotime('monday last week'));
+        $weekEnd = strtotime('-1 day',strtotime('sunday last week'));
+
+
+
+
+        $latest = $this->repository->getTopWordsFromLastWeek($weekStart, $weekEnd);
+        return $latest;
     }
 }

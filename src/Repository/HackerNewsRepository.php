@@ -40,6 +40,24 @@ class HackerNewsRepository
     }
 
     /**
+     * @return mixed
+     * @throws \Exception
+     */
+
+    public function getTopStories(){
+        return $this->sendRequest('topstories');
+    }
+
+    /**
+     * @return mixed
+     * @throws \Exception
+     */
+
+    public function getBestStories(){
+        return $this->sendRequest('beststories');
+    }
+
+    /**
      * @param $id
      * @return mixed
      * @throws \Exception
@@ -119,16 +137,22 @@ class HackerNewsRepository
     }
 
     /**
+     * @param $titles
      * @return array
      * @throws \Exception
      */
     public function getMostPopularWordsFromTitle(array $titles){
         //todo replace special characters
-        $words = explode(' ', strtolower(str_replace(array(':', '\\', '-', '*'), '', join($titles))));
 
-        $popularWords = array_count_values($words);
-        arsort($popularWords);
-        return array_slice($popularWords, 0, 10, true);
+        if (!empty($titles)){
+            $words = explode(' ', strtolower(str_replace(array(':', '\\', '-', '*'), '', join($titles))));
+            $popularWords = array_count_values($words);
+            arsort($popularWords);
+            return array_slice($popularWords, 0, 10, true);
+        }
+        return [];
+
+
     }
 
     /**
@@ -137,6 +161,81 @@ class HackerNewsRepository
      */
     public function getTopWordsFromLast25($count){
         $titles = $this->getTitlesFromStories($count);
+        return $this->getMostPopularWordsFromTitle($titles);
+
+    }
+
+    /**
+     * @param $startDate
+     * @param $endDate
+     * @return array
+     * @throws \Exception
+     */
+
+    public function getBetweenDate($startDate, $endDate){
+
+        $newStories = $this->getNewStories();
+        $bestStories = $this->getBestStories();
+        $topStories = $this->getTopStories();
+
+        $allStories = array_unique(array_merge($newStories, $bestStories, $topStories),SORT_REGULAR);
+        sort($allStories);
+        $oldFile = 'uploads/lastweek.json';
+        if (file_exists($oldFile)){
+            $oldStories = file_get_contents($oldFile);
+            $oldTitles = json_decode($oldStories, true);
+
+            $removedStories = array_diff(array_keys($oldTitles), $allStories);
+
+            $addedStories = array_diff($allStories, array_keys($oldTitles));
+            if ($removedStories){
+                foreach ($removedStories as $story){
+                    unset($oldTitles[$story]);
+                }
+            }
+            sort($allStories);
+            if ($addedStories){
+
+                foreach ($addedStories as $story){
+                    $singleStory = $this->getSingleItem($story);
+                    if ($singleStory->time >= $startDate && $singleStory->time <= $endDate){
+                        $titles[$story] = $singleStory->title;
+                    }
+                    if ($singleStory->time > $endDate){
+                        break;
+                    }
+                }
+
+            }
+            file_put_contents($oldFile, json_encode($oldTitles, JSON_PRETTY_PRINT));
+            return $oldTitles;
+
+        }else{
+            $titles = [];
+            foreach ($allStories as $story){
+                $singleStory = $this->getSingleItem($story);
+                if ($singleStory->time >= $startDate && $singleStory->time <= $endDate){
+                    $titles[$story] = $singleStory->title;
+                }
+                if ($singleStory->time > $endDate){
+                    break;
+                }
+            }
+            file_put_contents($oldFile, json_encode($titles, JSON_PRETTY_PRINT));
+
+            return $titles;
+        }
+
+    }
+
+    /**
+     * @param $startDate
+     * @param $endDate
+     * @return array
+     * @throws \Exception
+     */
+    public function getTopWordsFromLastWeek($startDate, $endDate){
+        $titles = $this->getBetweenDate($startDate, $endDate);
         return $this->getMostPopularWordsFromTitle($titles);
 
     }
