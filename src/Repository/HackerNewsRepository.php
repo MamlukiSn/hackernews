@@ -165,7 +165,7 @@ class HackerNewsRepository
             $titles = [];
             foreach ($stories as $story) {
 
-                $titles[$story] = $story->title;
+                $titles[$story->id] = $story->title;
             }
             file_put_contents($oldFile, json_encode($titles, JSON_PRETTY_PRINT));
             return $titles;
@@ -223,16 +223,16 @@ class HackerNewsRepository
     public function getBetweenDate($startDate, $endDate){
 
 
-        $allStories = $this->getAllStories();
+        $allStoriesIds = $this->getAllStories();
 
         $oldFile = 'uploads/lastweek.json';
         if (file_exists($oldFile)){
             $oldStories = file_get_contents($oldFile);
             $oldTitles = json_decode($oldStories, true);
 
-            $removedStories = array_diff(array_keys($oldTitles), $allStories);
+            $removedStories = array_diff(array_keys($oldTitles), $allStoriesIds);
 
-            $addedStories = array_diff($allStories, array_keys($oldTitles));
+            $addedStories = array_diff($allStoriesIds, array_keys($oldTitles));
             if ($removedStories){
                 foreach ($removedStories as $story){
                     unset($oldTitles[$story]);
@@ -240,14 +240,13 @@ class HackerNewsRepository
             }
 
             if ($addedStories){
-
-                foreach ($addedStories as $story){
-                    $singleStory = $this->getSingleItem($story);
-                    if (($singleStory->time >= $startDate) && ($singleStory->time <= $endDate)){
+                $newStories = $this->sendParallelRequest($addedStories, 'item/');
+                foreach ($newStories as $story){
+                    if (($story->time >= $startDate) && ($story->time <= $endDate)){
                         // $titles[$story] = $singleStory->title;
-                        $oldTitles[$story] = $singleStory->title;
+                        $oldTitles[$story->id] = $story->title;
                     }
-                    if ($singleStory->time > $endDate){
+                    if ($story->time > $endDate){
                         break;
                     }
                 }
@@ -257,13 +256,13 @@ class HackerNewsRepository
             return $oldTitles;
 
         }else{
+            $allStories = $this->sendParallelRequest($allStoriesIds, 'item/');
             $titles = [];
             foreach ($allStories as $story){
-                $singleStory = $this->getSingleItem($story);
-                if ($singleStory->time >= $startDate && $singleStory->time <= $endDate){
-                    $titles[$story] = $singleStory->title;
+                if ($story->time >= $startDate && $story->time <= $endDate){
+                    $titles[$story->id] = $singleStory->title;
                 }
-                if ($singleStory->time > $endDate){
+                if ($story->time > $endDate){
                     break;
                 }
             }
