@@ -22,14 +22,14 @@ class HackerNewsRepository
 {
 
     public function sendRequest($url){
-        $client  = new Client();
+        $client  = new Client(['verify' => false]);
         // $response = $client->request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json',['verify' => false]);
         // if ($response->getStatusCode() !== 200){
         //    throw new \Exception('Error fetching from API.');
         // }
         // return json_decode($response->getBody()->getContents());
 
-        $request = new Request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json',['verify' => false]);
+        $request = new Request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json');
         $promise = $client->sendAsync($request)->then(function ($res) {
             $response = json_decode($res->getBody()->getContents());
 
