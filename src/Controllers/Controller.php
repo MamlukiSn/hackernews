@@ -25,8 +25,8 @@ class Controller
     }
 
     public function latestWeek(){
-        $weekStart =  strtotime('-1 day',strtotime('monday last week'));
-        $weekEnd = strtotime('+2 day',strtotime('sunday last week'));
+        $weekStart =  strtotime('-1 day',strtotime('monday this week'));
+        $weekEnd = strtotime('-1 day',strtotime('sunday this week'));
         $latest = $this->repository->getTopWordsFromLastWeek($weekStart, $weekEnd);
         return $latest;
     }

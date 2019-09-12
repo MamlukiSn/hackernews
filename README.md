@@ -14,6 +14,7 @@ This api client is build using php
 - `git clone https://github.com/MamlukiSn/hackernews.git`
 - `cd hackernews`
 - Run `composer install`
+- Ensure that the uploads directory is writable by the web.
 
 ## Endpoints
 Top 10 most occurring words in the titles of the last 25 stories http://localhost/hackernews/latest25.php
