@@ -26,12 +26,13 @@ class Controller
 
     public function latestWeek(){
         $weekStart =  strtotime('-1 day',strtotime('monday last week'));
-        $weekEnd = strtotime('-1 day',strtotime('sunday last week'));
-
-
-
-
+        $weekEnd = strtotime('+2 day',strtotime('sunday last week'));
         $latest = $this->repository->getTopWordsFromLastWeek($weekStart, $weekEnd);
+        return $latest;
+    }
+
+    public function topUsers(){
+        $latest = $this->repository->getTopWordsFromUserStories(1000, 600);
         return $latest;
     }
 }

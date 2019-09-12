@@ -23,11 +23,23 @@ class HackerNewsRepository
 
     public function sendRequest($url){
         $client  = new Client();
-        $response = $client->request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json',['verify' => false]);
-        if ($response->getStatusCode() !== 200){
-           throw new \Exception('Error fetching from API.');
-        }
-        return json_decode($response->getBody()->getContents());
+        // $response = $client->request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json',['verify' => false]);
+        // if ($response->getStatusCode() !== 200){
+        //    throw new \Exception('Error fetching from API.');
+        // }
+        // return json_decode($response->getBody()->getContents());
+
+        $request = new Request('GET', 'https://hacker-news.firebaseio.com/v0/' . $url . '.json',['verify' => false]);
+        $promise = $client->sendAsync($request)->then(function ($res) {
+            $response = json_decode($res->getBody()->getContents());
+
+            // print_r($response);
+            // die;
+
+            return $response;
+        });
+        $response = $promise->wait();
+        return $response;
     }
 
     /**
@@ -166,6 +178,17 @@ class HackerNewsRepository
     }
 
     /**
+     * @return mixed
+     * @throws \Exception
+     */
+    public function getAllStories(){
+
+        $allStories = array_unique(array_merge($this->getNewStories(), $this->getBestStories(), $this->getBestStories()),SORT_REGULAR);
+        sort($allStories);
+        return $allStories;
+    }
+
+    /**
      * @param $startDate
      * @param $endDate
      * @return array
@@ -174,12 +197,9 @@ class HackerNewsRepository
 
     public function getBetweenDate($startDate, $endDate){
 
-        $newStories = $this->getNewStories();
-        $bestStories = $this->getBestStories();
-        $topStories = $this->getTopStories();
 
-        $allStories = array_unique(array_merge($newStories, $bestStories, $topStories),SORT_REGULAR);
-        sort($allStories);
+        $allStories = $this->getAllStories();
+
         $oldFile = 'uploads/lastweek.json';
         if (file_exists($oldFile)){
             $oldStories = file_get_contents($oldFile);
@@ -193,13 +213,14 @@ class HackerNewsRepository
                     unset($oldTitles[$story]);
                 }
             }
-            sort($allStories);
+
             if ($addedStories){
 
                 foreach ($addedStories as $story){
                     $singleStory = $this->getSingleItem($story);
-                    if ($singleStory->time >= $startDate && $singleStory->time <= $endDate){
-                        $titles[$story] = $singleStory->title;
+                    if (($singleStory->time >= $startDate) && ($singleStory->time <= $endDate)){
+                        // $titles[$story] = $singleStory->title;
+                        $oldTitles[$story] = $singleStory->title;
                     }
                     if ($singleStory->time > $endDate){
                         break;
@@ -238,6 +259,80 @@ class HackerNewsRepository
         $titles = $this->getBetweenDate($startDate, $endDate);
         return $this->getMostPopularWordsFromTitle($titles);
 
+    }
+
+    /**
+     * @param $karma
+     * @param $count
+     * @return array
+     * @throws \Exception
+     */
+    
+    public function getTopWordsFromUserStories($karma, $count){
+        $titles = $this->getStoriesWithUsers($karma, $count);
+        if (count($titles > $count)) {
+            $titles = array_slice($titles, 0, $count, true);
+        }
+
+        return $this->getMostPopularWordsFromTitle($titles);
+    }
+
+
+    public function getStoriesWithUsers($karma,$count){
+        ini_set('max_execution_time', '30000');
+
+        $stories = $this->getAllStories();
+        $allStories = array_slice($stories, 0, $count, true);
+
+        $titles = [];
+
+        $oldFile = 'uploads/topusers.json';
+        if (file_exists($oldFile)){
+            $oldStories = file_get_contents($oldFile);
+            $oldTitles = json_decode($oldStories, true);
+
+            $removedStories = array_diff(array_keys($oldTitles), $allStories);
+
+            $addedStories = array_diff($allStories, array_keys($oldTitles));
+            if ($removedStories){
+                foreach ($removedStories as $story){
+                    unset($oldTitles[$story]);
+                }
+            }
+
+            if ($addedStories){
+
+                foreach ($addedStories as $story){
+                    $singleStory = $this->getSingleItem($story);
+                    if ($singleStory && $singleStory->by) {
+                        $user = $this->getUser($singleStory->by);
+                        if ($user && ($user->karma >= $karma)) {
+                             $oldTitles[$story] = $singleStory->title;
+                        }
+                    }
+                    
+                }
+
+            }
+            file_put_contents($oldFile, json_encode($oldTitles, JSON_PRETTY_PRINT));
+            return $oldTitles;
+
+        }else{
+            
+            foreach ($allStories as $story){
+                $singleStory = $this->getSingleItem($story);
+                if ($singleStory && $singleStory->by) {
+                    $user = $this->getUser($singleStory->by);
+                    if ($user && ($user->karma >= $karma)) {
+                         $titles[$story] = $singleStory->title;
+                    }
+                }
+                
+            }
+            file_put_contents($oldFile, json_encode($titles, JSON_PRETTY_PRINT));
+
+            return $titles;
+        }
     }
 
 }
