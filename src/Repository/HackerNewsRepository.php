@@ -11,6 +11,7 @@ namespace Kenneth\HackerNews\Repository;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\RequestOptions;
+use GuzzleHttp\Promise;
 
 /**
  * Class HackerNewsRepository
@@ -40,6 +41,30 @@ class HackerNewsRepository
         });
         $response = $promise->wait();
         return $response;
+    }
+
+    public function sendParallelRequest($urls, $location){
+        $client  = new Client(['verify' => false]);
+        $promises = [];
+        foreach ($urls as $url){
+            $promises[$url] = $client->getAsync('https://hacker-news.firebaseio.com/v0/' .$location. $url . '.json');
+        }
+
+        $results = Promise\settle($promises)->wait();
+        $output = [];
+        foreach ($results as $key => $value){
+            if ($value['state'] === 'fulfilled' ){
+                $response = $value['value'];
+                if ($response->getStatusCode() == 200){
+                    $output[$key] = json_decode($response->getBody()->getContents());
+                }
+            }
+
+
+
+        }
+
+        return $output;
     }
 
     /**
@@ -109,15 +134,15 @@ class HackerNewsRepository
      */
     public function getTitlesFromStories($count){
 
-        $stories = $this->getLatestStoriesByCount($count);
+        $storyIds = $this->getLatestStoriesByCount($count);
         $oldFile = 'uploads/latest25.json';
         if (file_exists($oldFile)){
             $oldStories = file_get_contents($oldFile);
             $oldTitles = json_decode($oldStories, true);
 
-            $removedStories = array_diff(array_keys($oldTitles), $stories);
+            $removedStories = array_diff(array_keys($oldTitles), $storyIds);
 
-            $addedStories = array_diff($stories, array_keys($oldTitles));
+            $addedStories = array_diff($storyIds, array_keys($oldTitles));
             if ($removedStories){
                 foreach ($removedStories as $story){
                     unset($oldTitles[$story]);
@@ -125,9 +150,9 @@ class HackerNewsRepository
             }
 
             if ($addedStories){
-                foreach ($addedStories as $story){
-                    $singleStory = $this->getSingleItem($story);
-                    $oldTitles[$story] = $singleStory->title;
+                $newStories = $this->sendParallelRequest($addedStories, 'item/');
+                foreach ($newStories as $story){
+                    $oldTitles[$story->id] = $story->title;
                 }
 
             }
@@ -135,12 +160,12 @@ class HackerNewsRepository
             return $oldTitles;
 
         }else{
+
+            $stories = $this->sendParallelRequest($storyIds, 'item/');
             $titles = [];
             foreach ($stories as $story) {
 
-                $singleStory = $this->getSingleItem($story);
-
-                $titles[$story] = $singleStory->title;
+                $titles[$story] = $story->title;
             }
             file_put_contents($oldFile, json_encode($titles, JSON_PRETTY_PRINT));
             return $titles;
