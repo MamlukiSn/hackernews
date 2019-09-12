@@ -294,7 +294,7 @@ class HackerNewsRepository
     
     public function getTopWordsFromUserStories($karma, $count){
         $titles = $this->getStoriesWithUsers($karma, $count);
-        if (count($titles > $count)) {
+        if (count($titles) >  $count) {
             $titles = array_slice($titles, 0, $count, true);
         }
 
@@ -306,7 +306,7 @@ class HackerNewsRepository
         ini_set('max_execution_time', '30000');
 
         $stories = $this->getAllStories();
-        $allStories = array_slice($stories, 0, $count, true);
+        $allStoryIds = array_slice($stories, 0, $count, true);
 
         $titles = [];
 
@@ -315,9 +315,9 @@ class HackerNewsRepository
             $oldStories = file_get_contents($oldFile);
             $oldTitles = json_decode($oldStories, true);
 
-            $removedStories = array_diff(array_keys($oldTitles), $allStories);
+            $removedStories = array_diff(array_keys($oldTitles), $allStoryIds);
 
-            $addedStories = array_diff($allStories, array_keys($oldTitles));
+            $addedStories = array_diff($allStoryIds, array_keys($oldTitles));
             if ($removedStories){
                 foreach ($removedStories as $story){
                     unset($oldTitles[$story]);
@@ -326,15 +326,22 @@ class HackerNewsRepository
 
             if ($addedStories){
 
-                foreach ($addedStories as $story){
-                    $singleStory = $this->getSingleItem($story);
-                    if ($singleStory && $singleStory->by) {
-                        $user = $this->getUser($singleStory->by);
-                        if ($user && ($user->karma >= $karma)) {
-                             $oldTitles[$story] = $singleStory->title;
+                $newStories = $this->sendParallelRequest($addedStories, 'item/');
+                $userIds = array_map(function($story) {
+                    return is_object($story) ? $story->by : null;
+                }, $newStories);
+
+                $users = $this->sendParallelRequest($userIds, 'user/');
+
+                $validUsers = array_map(function($user) use ($karma) {
+                    return $user->karma >= $karma ? $user->karma : null ;
+                }, $users);
+                foreach ($newStories as $story){
+                    if ($story && $story->by){
+                        if (isset($validUsers[$story->by]) && !is_null($validUsers[$story->by]) ){
+                            $oldTitles[$story->id] = $story->title;
                         }
                     }
-                    
                 }
 
             }
@@ -342,13 +349,22 @@ class HackerNewsRepository
             return $oldTitles;
 
         }else{
-            
+            $allStories = $this->sendParallelRequest($allStoryIds, 'item/');
+            $userIds = array_map(function($story) {
+                return is_object($story) ? $story->by : null;
+            }, $allStories);
+
+            $users = $this->sendParallelRequest($userIds, 'user/');
+
+            $validUsers = array_map(function($user) use ($karma) {
+                return $user->karma >= $karma ? $user->karma : null ;
+            }, $users);
+
+
             foreach ($allStories as $story){
-                $singleStory = $this->getSingleItem($story);
-                if ($singleStory && $singleStory->by) {
-                    $user = $this->getUser($singleStory->by);
-                    if ($user && ($user->karma >= $karma)) {
-                         $titles[$story] = $singleStory->title;
+                if ($story && $story->by){
+                    if (isset($validUsers[$story->by]) && !is_null($validUsers[$story->by]) ){
+                        $titles[$story->id] = $story->title;
                     }
                 }
                 

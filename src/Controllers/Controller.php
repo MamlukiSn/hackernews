@@ -32,7 +32,7 @@ class Controller
     }
 
     public function topUsers(){
-        $latest = $this->repository->getTopWordsFromUserStories(1000, 600);
+        $latest = $this->repository->getTopWordsFromUserStories(10000, 600);
         return $latest;
     }
 }
