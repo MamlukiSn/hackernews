@@ -242,11 +242,12 @@ class HackerNewsRepository
             if ($addedStories){
                 $newStories = $this->sendParallelRequest($addedStories, 'item/');
                 foreach ($newStories as $story){
-                    if (($story->time >= $startDate) && ($story->time <= $endDate)){
+
+                    if ($story && ($story->time >= $startDate) && ($story->time <= $endDate)){
                         // $titles[$story] = $singleStory->title;
                         $oldTitles[$story->id] = $story->title;
                     }
-                    if ($story->time > $endDate){
+                    if ($story && $story->time > $endDate){
                         break;
                     }
                 }
